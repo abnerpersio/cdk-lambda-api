@@ -1,15 +1,14 @@
-import { ROUTES, type Route } from "@/routes";
-import { toKebabCase } from "@/shared/utils/lambda";
-import * as cdk from "aws-cdk-lib";
-import * as apigatewayv2 from "aws-cdk-lib/aws-apigatewayv2";
-import { HttpJwtAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
-import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
-import * as iam from "aws-cdk-lib/aws-iam";
-import * as lambda from "aws-cdk-lib/aws-lambda";
-import * as logs from "aws-cdk-lib/aws-logs";
-import type { Construct } from "constructs";
-import { stackConfig } from "../config";
-import { createFunctionAsset } from "../utils";
+import { ROUTES, type Route } from '@/routes';
+import * as cdk from 'aws-cdk-lib';
+import * as apigatewayv2 from 'aws-cdk-lib/aws-apigatewayv2';
+import { HttpJwtAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
+import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import type { Construct } from 'constructs';
+import { stackConfig } from '../config';
+import { toKebabCase, createFunctionAsset } from '../utils';
 
 type Env = Record<string, string>;
 
@@ -25,27 +24,23 @@ export class ApiGatewayStack extends cdk.Stack {
   private logGroup: cdk.aws_logs.LogGroup;
   private authorizer: HttpJwtAuthorizer;
 
-  constructor(
-    scope: Construct,
-    id: string,
-    private readonly gatewayProps: GatewayProps
-  ) {
+  constructor(scope: Construct, id: string, private readonly gatewayProps: GatewayProps) {
     super(scope, id, {
-      stackName: stackConfig.stackName.concat("-apigateway"),
+      stackName: stackConfig.stackName.concat('-apigateway'),
     });
 
     this.logGroup = this.createLogGroup();
 
     const issuerUrl = gatewayProps.userPool.userPoolProviderUrl;
-    this.authorizer = new HttpJwtAuthorizer("JwtAuthorizer", issuerUrl, {
+    this.authorizer = new HttpJwtAuthorizer('JwtAuthorizer', issuerUrl, {
       jwtAudience: [gatewayProps.userPoolClient.userPoolClientId],
-      identitySource: ["$request.header.Authorization"],
+      identitySource: ['$request.header.Authorization'],
     });
 
-    this.api = new apigatewayv2.HttpApi(this, "ApiGateway", {
+    this.api = new apigatewayv2.HttpApi(this, 'ApiGateway', {
       apiName: stackConfig.apiGateway.apiName,
       corsPreflight: {
-        allowOrigins: ["*"],
+        allowOrigins: ['*'],
         allowMethods: [
           apigatewayv2.CorsHttpMethod.GET,
           apigatewayv2.CorsHttpMethod.POST,
@@ -54,7 +49,7 @@ export class ApiGatewayStack extends cdk.Stack {
           apigatewayv2.CorsHttpMethod.PATCH,
           apigatewayv2.CorsHttpMethod.OPTIONS,
         ],
-        allowHeaders: ["Authorization", "Content-Type", "X-API-Key"],
+        allowHeaders: ['Authorization', 'Content-Type', 'X-API-Key'],
       },
       defaultAuthorizer: undefined,
       disableExecuteApiEndpoint: stackConfig.apiDomain.disableDefaultApiDomain,
@@ -64,9 +59,9 @@ export class ApiGatewayStack extends cdk.Stack {
       this.createLambdaFunction(route);
     }
 
-    new cdk.CfnOutput(this, "ApiUrl", {
+    new cdk.CfnOutput(this, 'ApiUrl', {
       value: this.api.url!,
-      description: "API Gateway URL",
+      description: 'API Gateway URL',
     });
   }
 
@@ -79,17 +74,16 @@ export class ApiGatewayStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    new cdk.CfnOutput(this, "LogGroupName", {
+    new cdk.CfnOutput(this, 'LogGroupName', {
       value: logGroup.logGroupName,
-      description:
-        "Log group name (add to .env so you can run 'pnpm run logs')",
+      description: "Log group name (add to .env so you can run 'pnpm run logs')",
     });
 
     return logGroup;
   }
 
   private createLambdaFunction(route: Route) {
-    const name = toKebabCase(route.fnPath.replace(/\//g, "--"));
+    const name = toKebabCase(route.fnPath.replace(/\//g, '--'));
     const { handler, asset } = createFunctionAsset(route.fnPath);
 
     const lambdaFn = new lambda.Function(this, name, {
@@ -104,20 +98,12 @@ export class ApiGatewayStack extends cdk.Stack {
       role: this.gatewayProps.role,
     });
 
-    const integration = new HttpLambdaIntegration(
-      `${name}-integration`,
-      lambdaFn
-    );
-
-    const routePath = route.route;
-    const method = this.getHttpMethod(route.method);
-
     this.api.addRoutes({
-      path: routePath,
-      methods: [method],
-      integration,
+      path: route.route,
+      methods: [this.getHttpMethod(route.method)],
+      integration: new HttpLambdaIntegration(`${name}-integration`, lambdaFn),
       authorizer: route.private ? this.authorizer : undefined,
-    });
+    })toKebabCase;
   }
 
   private getHttpMethod(method?: string): apigatewayv2.HttpMethod {
@@ -132,8 +118,6 @@ export class ApiGatewayStack extends cdk.Stack {
       ANY: apigatewayv2.HttpMethod.ANY,
     };
 
-    return (
-      methodMap[method?.toUpperCase() || "ANY"] || apigatewayv2.HttpMethod.ANY
-    );
+    return methodMap[method?.toUpperCase() || 'ANY'] || apigatewayv2.HttpMethod.ANY;
   }
 }
